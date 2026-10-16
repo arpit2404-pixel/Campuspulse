@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, Heart, Shield, School, PhoneCall } from 'lucide-react';
+import { Radio, Heart, Shield, PhoneCall } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
@@ -19,10 +19,6 @@ export const Footer: React.FC = () => {
             <p className="text-slate-400 text-xs max-w-sm leading-relaxed">
               Real-time campus issue reporting and resolution platform for college students. Empowering students with anonymous reporting, intelligent issue clustering, and transparent resolution timelines.
             </p>
-            <div className="text-[11px] text-teal-400/90 font-medium flex items-center gap-1.5 pt-1">
-              <School className="w-3.5 h-3.5" />
-              First-Year College Engineering Hackathon Edition
-            </div>
           </div>
 
           {/* Core Categories */}

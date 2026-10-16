@@ -246,7 +246,7 @@ export const App: React.FC = () => {
                   </div>
                   <h4 className="font-bold text-white text-sm">Transparent Resolution</h4>
                   <p className="text-slate-400 mt-1">
-                    Campus administrators post live notes and update statuses (Pending $\rightarrow$ Review $\rightarrow$ In Progress $\rightarrow$ Resolved).
+                    Campus administrators post live notes and update statuses (Pending &rarr; Review &rarr; In Progress &rarr; Resolved).
                   </p>
                 </div>
               </div>
