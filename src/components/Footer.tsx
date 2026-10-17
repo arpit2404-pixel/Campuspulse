@@ -21,7 +21,7 @@ export const Footer: React.FC = () => {
             </p>
             <div className="text-[11px] text-teal-400/90 font-medium flex items-center gap-1.5 pt-1">
               <School className="w-3.5 h-3.5" />
-              First-Year College Engineering Hackathon Edition
+              CampusPulse Operations & Maintenance Hub · Anonymous & Secure
             </div>
           </div>
 
@@ -48,11 +48,11 @@ export const Footer: React.FC = () => {
             <div className="space-y-2 text-slate-400">
               <p className="flex items-center gap-2">
                 <PhoneCall className="w-3.5 h-3.5 text-teal-400" />
-                Estate Control Room: Ext 4022
+                Estate Control Room: +91-9876543210
               </p>
               <p className="flex items-center gap-2">
                 <Shield className="w-3.5 h-3.5 text-amber-400" />
-                Campus Safety Helpline: 1800-CAMPUS
+                Campus Safety Helpline: +91-1800123456
               </p>
               <p className="text-[11px] text-slate-500 pt-1">
                 For life safety or electrical fire hazards, contact security immediately.
