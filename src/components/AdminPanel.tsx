@@ -63,10 +63,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Notification message
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const showNotice = (msg: string) => {
     setActionNotice(msg);
     setTimeout(() => setActionNotice(null), 4000);
+  };
+
+  const showError = (msg: string) => {
+    setActionError(msg);
+    setTimeout(() => setActionError(null), 6000);
   };
 
   // Filter issues
@@ -91,22 +97,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // Submit status update
-  const handleSaveStatus = (e: React.FormEvent) => {
+  const handleSaveStatus = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!statusModalIssue) return;
     setIsUpdatingStatus(true);
 
-    const success = db.updateIssueStatus(
+    const result = await db.updateIssueStatus(
       statusModalIssue.id,
       newStatus,
-      adminNote || `Status changed from ${statusModalIssue.status} to ${newStatus}.`,
-      adminUser.name
+      adminNote || `Status changed from ${statusModalIssue.status} to ${newStatus}.`
     );
 
-    if (success) {
+    if (result.success) {
       showNotice(`Successfully updated "${statusModalIssue.title}" to ${newStatus}!`);
       setStatusModalIssue(null);
       onRefresh();
+    } else {
+      showError(result.message || 'Could not update the status.');
     }
     setIsUpdatingStatus(false);
   };
@@ -121,21 +128,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // Execute merge
-  const handleExecuteMerge = (e: React.FormEvent) => {
+  const handleExecuteMerge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!mergeSourceIssue || !mergeTargetIssueId) return;
 
-    const success = db.mergeIssues(
+    const result = await db.mergeIssues(
       mergeTargetIssueId,
       mergeSourceIssue.id,
-      mergeNotes || 'Merged duplicates by administrative review.',
-      adminUser.name
+      mergeNotes || 'Merged duplicates by administrative review.'
     );
 
-    if (success) {
+    if (result.success) {
       showNotice(`Merged issue reports into target ticket successfully.`);
       setMergeSourceIssue(null);
       onRefresh();
+    } else {
+      showError(result.message || 'Could not merge the issues.');
     }
   };
 
@@ -147,37 +155,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   // Execute separate
-  const handleExecuteSeparate = (e: React.FormEvent) => {
+  const handleExecuteSeparate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!separateReportItem) return;
 
-    const newIssue = db.separateReport(
+    const result = await db.separateReport(
       separateReportItem.report.id,
       separateNewTitle || separateReportItem.report.title,
-      separateNotes || 'Separated misgrouped report into individual ticket.',
-      adminUser.name
+      separateNotes || 'Separated misgrouped report into individual ticket.'
     );
 
-    if (newIssue) {
-      showNotice(`Separated report into new ticket: "${newIssue.title}"`);
+    if (result.success && result.issue) {
+      showNotice(`Separated report into new ticket: "${result.issue.title}"`);
       setSeparateReportItem(null);
       onRefresh();
+    } else {
+      showError(result.message || 'Could not separate the report.');
     }
-  };
-
-  // Demo dataset reset/seed
-  const handleResetDemoData = () => {
-    if (window.confirm('Reset demo dataset? Real student-submitted reports will be safely preserved.')) {
-      db.resetDemoData();
-      showNotice('Demo dataset cleared. Real student reports preserved.');
-      onRefresh();
-    }
-  };
-
-  const handleSeedDemoData = () => {
-    db.seedDemoData();
-    showNotice('Loaded 15+ realistic campus demo reports.');
-    onRefresh();
   };
 
   return (
@@ -203,32 +197,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             </p>
           </div>
 
-          {/* Quick Demo Data Actions */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-2 md:pt-0">
-            <button
-              onClick={handleSeedDemoData}
-              className="px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-navy-950 font-bold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
-              title="Ensure all 15+ demo campus reports are populated"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Seed 15+ Demo Data
-            </button>
-
-            <button
-              onClick={handleResetDemoData}
-              className="px-3.5 py-2 rounded-xl bg-navy-800 hover:bg-navy-700 text-slate-200 border border-navy-700 font-semibold text-xs flex items-center gap-1.5 transition-colors"
-              title="Safely remove demo data without losing real user reports"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reset Demo Data
-            </button>
-          </div>
         </div>
 
         {actionNotice && (
           <div className="mt-4 p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
             <CheckCircle2 className="w-4 h-4" />
             <span>{actionNotice}</span>
+          </div>
+        )}
+
+        {actionError && (
+          <div className="mt-4 p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-200 text-xs font-semibold flex items-center gap-2 animate-in fade-in">
+            <AlertCircle className="w-4 h-4" />
+            <span>{actionError}</span>
           </div>
         )}
       </div>
@@ -255,7 +236,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             >
               <option value="All">All Statuses</option>
               <option value="Pending">Pending</option>
-              <option value="Under Review">Under Review</option>
               <option value="In Progress">In Progress</option>
               <option value="Resolved">Resolved</option>
             </select>
@@ -305,8 +285,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           : issue.status === 'In Progress'
                           ? 'bg-teal-50 text-teal-800 border-teal-200'
-                          : issue.status === 'Under Review'
-                          ? 'bg-blue-50 text-blue-800 border-blue-200'
                           : 'bg-amber-50 text-amber-800 border-amber-200'
                       }`}>
                         {issue.status}
@@ -315,12 +293,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <span className="text-xs font-mono font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-100">
                         {issue.reportCount} {issue.reportCount === 1 ? 'report' : 'reports aggregated'}
                       </span>
-
-                      {issue.isDemo && (
-                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded uppercase">
-                          Demo Data
-                        </span>
-                      )}
                     </div>
 
                     <h4 
@@ -438,8 +410,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Resolution Status <span className="text-red-500">*</span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {(['Pending', 'Under Review', 'In Progress', 'Resolved'] as IssueStatus[]).map((status) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {(['Pending', 'In Progress', 'Resolved'] as IssueStatus[]).map((status) => (
                     <button
                       key={status}
                       type="button"

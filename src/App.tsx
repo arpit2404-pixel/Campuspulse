@@ -13,7 +13,9 @@ import {
   Zap,
   HelpCircle,
   Clock,
-  ChevronRight
+  ChevronRight,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { Issue, Report, CampusStats, AdminUser } from './types';
 import { db } from './services/db';
@@ -36,21 +38,10 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'issues' | 'admin'>('dashboard');
   const [issues, setIssues] = useState<Issue[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
-  const [stats, setStats] = useState<CampusStats>({
-    totalReports: 0,
-    totalIssues: 0,
-    awaitingResolution: 0,
-    resolvedIssues: 0,
-    categoryCounts: {
-      'Electrical': 0,
-      'Plumbing': 0,
-      'Classroom Equipment': 0,
-      'Cleanliness': 0,
-      'Infrastructure': 0,
-      'Safety': 0,
-      'Other': 0
-    }
-  });
+  const [stats, setStats] = useState<CampusStats>(db.getStats());
+
+  // Is the server answering? (Free hosting sleeps when idle and can take ~1 minute to wake.)
+  const [connection, setConnection] = useState(db.getConnection());
 
   // Active user / auth state
   const [adminUser, setAdminUser] = useState<AdminUser | null>(auth.getCurrentUser());
@@ -81,12 +72,12 @@ export const App: React.FC = () => {
     setIssues(loadedIssues);
     setReports(loadedReports);
     setStats(loadedStats);
+    setConnection(db.getConnection());
 
-    // If currently inspecting an issue, update its reference
-    if (selectedIssue) {
-      const refreshed = db.getIssueById(selectedIssue.id);
-      setSelectedIssue(refreshed);
-    }
+    // If currently inspecting an issue, show its newest data. (The functional form
+    // always sees the latest selection, even when called from the long-lived
+    // subscription below.)
+    setSelectedIssue(prev => (prev ? db.getIssueById(prev.id) : prev));
   };
 
   useEffect(() => {
@@ -139,18 +130,11 @@ export const App: React.FC = () => {
     showToast('Admin logged out successfully.');
   };
 
-  const demoCount = reports.filter(r => r.isDemo).length;
-  const realCount = reports.filter(r => !r.isDemo).length;
-
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-teal-500 selection:text-white">
-      
-      {/* Demo Banner */}
-      <DemoBanner
-        demoCount={demoCount}
-        realCount={realCount}
-        onRefresh={refreshData}
-      />
+
+      {/* Information bar about fair ranking */}
+      <DemoBanner />
 
       {/* Main Navbar */}
       <Navbar
@@ -161,6 +145,29 @@ export const App: React.FC = () => {
         adminUser={adminUser}
         onLogoutAdmin={handleLogoutAdmin}
       />
+
+      {/* Connection status: loading the first data, or the server can't be reached */}
+      {connection.isLoading && (
+        <div className="bg-slate-100 border-b border-slate-200 px-4 py-2 text-xs text-slate-600 flex items-center justify-center gap-2">
+          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          <span>Loading the latest campus reports... free hosting can take up to a minute to wake up.</span>
+        </div>
+      )}
+      {!connection.isLoading && connection.error && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-xs text-amber-900 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          <span className="flex items-center gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+            <span>{connection.error} Showing the last data received. Retrying automatically.</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => void db.refresh(true)}
+            className="font-bold underline underline-offset-2 hover:text-amber-700"
+          >
+            Retry now
+          </button>
+        </div>
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (
@@ -195,7 +202,7 @@ export const App: React.FC = () => {
 
                 <p className="text-sm sm:text-base text-slate-300 max-w-2xl leading-relaxed">
                   Notice a broken ceiling fan, water leaking in the library, or a damaged projector? 
-                  Report it anonymously in 30 seconds. CampusPulse groups identical reports automatically, 
+                  Report it in 30 seconds, with no sign-up and no name or email collected. CampusPulse groups identical reports automatically,
                   escalates recurring issues, and gives students direct visibility into campus repairs.
                 </p>
 
@@ -224,9 +231,9 @@ export const App: React.FC = () => {
                   <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center font-extrabold mb-2.5">
                     1
                   </div>
-                  <h4 className="font-bold text-white text-sm">Report Anonymously</h4>
+                  <h4 className="font-bold text-white text-sm">Report Without Sign-up</h4>
                   <p className="text-slate-400 mt-1">
-                    No sign-up barrier. Describe the problem, pick the classroom or building, and submit with zero fear.
+                    No account needed. Describe the problem, pick the classroom or building, and submit. No name, email or phone number is collected.
                   </p>
                 </div>
 
@@ -246,7 +253,7 @@ export const App: React.FC = () => {
                   </div>
                   <h4 className="font-bold text-white text-sm">Transparent Resolution</h4>
                   <p className="text-slate-400 mt-1">
-                    Campus administrators post live notes and update statuses (Pending &rarr; Review &rarr; In Progress &rarr; Resolved).
+                    Campus administrators post live notes and update statuses (Pending → In Progress → Resolved).
                   </p>
                 </div>
               </div>

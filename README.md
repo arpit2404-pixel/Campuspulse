@@ -1,105 +1,119 @@
 # CampusPulse
 
-**Your campus. Your voice.** An anonymous campus issue reporting platform that groups duplicate complaints into one prioritised ticket, so the problems that affect the most students rise to the top.
+**Your campus. Your voice.** A campus issue-reporting platform that groups duplicate complaints into one ticket, so the problems affecting the most students rise to the top. Reports are stored in a real PostgreSQL database and shared by every visitor.
 
-Built by a two-person first-year team for the first-year IEEE hackathon, where it was judged by senior students. Stack: React 18, TypeScript, Vite, Tailwind CSS.
+Started as a first-year IEEE hackathon project (judged by senior students), then extended with a real backend.
 
-<!-- Add 3-4 screenshots in docs/screenshots/ and embed them here, e.g.
+**Stack:** React 18 · TypeScript · Vite · Tailwind CSS · Node.js · Express · PostgreSQL (Neon)
+
+**Live demo:** _add your Render URL here after deploying_ (the free server sleeps when idle, so the first load can take about a minute)
+
+<!-- Add 3-4 screenshots to docs/screenshots/ and embed them here, e.g.
 ![Dashboard](docs/screenshots/dashboard.png) -->
 
 ## The problem
 
-On a campus, a broken fan or a leaking ceiling gets reported ten different ways to ten different people, or not at all, because students fear being identified or don't know who to tell. Maintenance staff then see noise instead of a clear list of what matters most.
+On a campus, one broken fan gets reported ten different ways to ten different people, or not at all. Maintenance staff see noise instead of a clear list of what matters most. CampusPulse collects reports in one place and groups duplicates, so the most widespread problems are obvious.
 
 ## What it does
 
-- **Anonymous reporting.** No account is needed. A student submits a report in seconds and gets a reference code (`CP-2026-XXXX`).
-- **Smart duplicate grouping.** Each new report is compared with active issues. If it matches an existing one, it is merged into that ticket and the report count goes up. Otherwise a new ticket is created.
-- **Top 5 recurring issues.** A live ranking with relative urgency bars.
-- **Transparent status timeline.** `Pending → Under Review → In Progress → Resolved`, with public notes from maintenance staff.
-- **Admin console.** Update statuses, add notes, merge duplicate tickets, and split reports that were grouped wrongly.
-- **Fair ranking.** One report or upvote per device per issue, so rankings can't be inflated by spamming.
+- **Report in seconds, no sign-up.** No name, email or phone number is collected. You get a reference code like `CP-2026-XXXX`.
+- **Smart duplicate grouping (server-side).** A new report is compared with open issues (same category and building, room number, keyword overlap with synonyms, Jaccard similarity, 55% threshold). A match joins the existing ticket; otherwise a new ticket is created.
+- **Dashboard from real data.** Totals, unresolved/resolved, recent reports, common categories and Top 5 recurring problems are computed from database rows. A new database starts empty and shows zeros.
+- **Status timeline.** `Pending → In Progress → Resolved`, with public notes.
+- **Admin console.** Log in, change status, merge duplicates, split wrongly grouped reports.
+- **Categories:** Infrastructure, Electricity, Water, Cleanliness, Internet, Classroom Equipment, Other.
 
-## How the grouping engine works
+## Architecture
 
-The engine lives in [`src/services/groupingEngine.ts`](src/services/groupingEngine.ts) and uses no external APIs. For a new report, it scores every unresolved issue in this order:
-
-1. **Category** must match exactly (Electrical, Plumbing, and so on), otherwise the issue is skipped.
-2. **Building** must match after normalisation.
-3. **Room** numbers are extracted (`Room 204`, `LH-204` and `204` all become `204`). Two different room numbers rule out a match.
-4. **Text similarity.** Titles and descriptions are tokenised, stop words are removed, and synonyms are collapsed (`dripping` → `leak`, `rattling` → `broken`, `toilet` → `washroom`). The overlap is measured with the Jaccard index.
-5. **Score** = keyword overlap + weighted Jaccard + building bonus + room bonus. At 55% confidence or higher, the report joins the existing issue.
-
-Admins can always correct the result by splitting or merging tickets, so a wrong guess costs one click.
-
-## Run it locally
-
-Requires Node.js 20 or newer.
-
-```bash
-npm install
-npm run dev      # http://localhost:3000
-npm run build    # type-check and production build
-npm test         # end-to-end workflow tests (no browser needed)
+```
+Browser (React)  --/api-->  Express server  --pg-->  Neon PostgreSQL
+ src/                        server/
 ```
 
-### Demo admin login
+- `src/services/api.ts` talks to the API (`VITE_API_URL`, or same origin / Vite proxy).
+- `src/services/db.ts` keeps a cache of `GET /api/state`, refreshed on load, after writes, every 30 s and when the tab regains focus.
+- `server/src/` has config, validation, similarity engine, security helpers, services and routes. `server/db/schema.sql` is the database schema.
+- The database URL lives **only on the server** (`DATABASE_URL`). It is never sent to the browser.
 
-Click **Admin** in the navbar and sign in with:
+## Run locally (Windows, VS Code)
 
-| Account | Email | Password |
-|---|---|---|
-| Chief Facilities Administrator | `admin@campuspulse.edu` | `CampusPulse@Demo2026` |
-| Estate Maintenance Desk | `estate@campuspulse.edu` | `CampusPulse@Demo2026` |
+Needs Node.js 20.12 or newer.
 
-These are demo credentials for this public repository, not real accounts. To use your own password, copy `.env.example` to `.env` and set `VITE_ADMIN_PASSWORD_SHA256` to the SHA-256 hash of your password.
+1. **Create a free Neon database** at https://neon.tech (no card needed). Create a project, then copy the connection string from **Connect** (it ends in `?sslmode=require`).
+2. In the project folder, copy `.env.example` to `.env` and fill in:
+   - `DATABASE_URL` = your Neon connection string
+   - `SERVER_SECRET` = a long random string. Generate one: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+3. In a terminal:
+   ```powershell
+   npm install          # use install, not "npm ci"
+   npm run db:setup     # creates the tables (safe to re-run)
+   npm run create-admin # asks for an email and password; stores only a salted hash
+   ```
+4. Open **two** terminals:
+   ```powershell
+   npm run server       # API on http://localhost:3001
+   npm run dev          # website on http://localhost:3000
+   ```
+5. Open http://localhost:3000, submit a report, and use **Admin** in the navbar to sign in with the account you created.
 
-The app starts empty. Use **Load Sample Demo Data** in the banner to fill it with 18 realistic reports across 7 campus buildings.
+Never commit `.env`; it is git-ignored. Never put secrets in `VITE_` variables, because those are public.
+
+## API
+
+| Method | Path | Who | Purpose |
+|---|---|---|---|
+| GET | `/api/health` | anyone | server + database check |
+| GET | `/api/state` | anyone | issues, reports, stats |
+| POST | `/api/reports` | anyone | submit a report |
+| POST | `/api/issues/:id/support` | anyone | "I have this too" |
+| POST | `/api/admin/login`, `/logout` | admin | session |
+| GET | `/api/admin/me` | admin | current admin |
+| PATCH | `/api/issues/:id/status` | admin | change status + note |
+| POST | `/api/issues/:id/merge` | admin | merge duplicate tickets |
+| POST | `/api/reports/:id/separate` | admin | split a report out |
+
+Errors look like `{"error":{"code","message","fields?","retryAfterSeconds?"}}`.
+
+## Security and spam controls
+
+- Parameterised SQL only; server-side validation, length limits, HTML stripping, rejection of links and repeated-character spam; 20 kB body limit.
+- Per-browser limit (3 reports / 3 min) and per-network limit (30 / 10 min), plus an in-memory per-IP rate limiter. One report or support per browser per issue (database-enforced). Duplicate submissions get a clear 409 message.
+- The server stores only HMAC hashes of a random browser id and the IP address (keyed with `SERVER_SECRET`); the hashes are never returned by the API.
+- Admin passwords are scrypt-hashed; sessions are random tokens stored hashed, expire after 8 hours; login is limited to 5 attempts / 15 min. No admin passwords exist in the code or repository.
+- **Honest limits:** this is *not* fully anonymous and *not* spam-proof. The server can link hashes to a browser/network, and someone with many devices or networks can still submit repeatedly. Treat it as a portfolio project, not a hardened production system.
 
 ## Tests
 
-`test_workflows.ts` runs the data layer and auth service in Node and checks:
-
-- the app starts with zero issues and no leftover demo data
-- a first report creates an issue
-- the same student can't spam the same issue or upvote it twice
-- different students reporting the same problem are grouped (81% confidence in the test case)
-- Top 5 ranking is correct
-- the old plaintext `admin` password is rejected, and a valid admin can resolve an issue
-- data survives a reload (localStorage persistence)
-
-## Project structure
-
+```powershell
+$env:TEST_DATABASE_URL="postgresql://user:pass@localhost:5432/campuspulse_test"
+npm test
 ```
-src/
-├── components/     UI: dashboard cards, report form, explorer, admin panel
-├── services/
-│   ├── db.ts              localStorage-backed store with reactive updates
-│   ├── auth.ts            demo admin authentication (hashed, see limitations)
-│   └── groupingEngine.ts  duplicate detection and scoring
-├── data/demoData.ts       optional sample dataset
-└── types/                 Issue, Report, StatusHistory, AdminUser
-test_workflows.ts          end-to-end tests for the data layer
-```
+
+66 tests (validation, similarity, security helpers, complaint flow, admin/session, route handlers). They need a **separate, disposable** PostgreSQL database because they wipe its tables. Never point them at your real Neon database.
+
+## Free deployment
+
+Recommended: one **Render free Web Service** (serves API + built website) + **Neon free** database.
+
+1. Push the project to GitHub (check `.env` is not included).
+2. Render → New Web Service → your repo. Build command: `npm install && npm run build`. Start command: `npm start`.
+3. Environment variables on Render: `DATABASE_URL`, `SERVER_SECRET`, `NODE_ENV=production`. Run `npm run db:setup` and `npm run create-admin` once on your own computer against the same Neon database.
+4. Open the Render URL; `/api/health` should say the database is connected.
+
+Free-tier limits (as of October 2026; check the providers, they change):
+- **Render free web service** sleeps after ~15 min idle, so the first visit after a pause can take about a minute. The site shows a waiting message while it wakes. Don't use Render's free Postgres, which expires after 30 days.
+- **Neon free** is permanent, no card, about 1 GB per project; the database suspends when idle and wakes in a moment.
+
+Splitting the site (Netlify/Vercel) from the API (Render) also works: set `VITE_API_URL` at build time and `CORS_ORIGIN` on the server.
 
 ## Known limitations
 
-This was built for a hackathon, so it is a front-end prototype rather than a production system.
-
-- **No backend.** Data is stored in the browser's localStorage, so each browser sees its own data.
-- **Admin login is client-side.** It is hashed rather than stored in plaintext, but anyone with dev tools can bypass it. A real deployment needs server-side authentication with salted password hashes, rate limiting, and signed sessions.
-- **Anti-spam is per device.** It relies on a device identifier kept in the browser, which a determined user can clear.
-- **Grouping is rule-based.** It is a transparent heuristic with a hand-written synonym list, not a trained model.
-
-## What I'd build next
-
-- A real backend (Node + Postgres) with server-side auth and image storage
-- Embedding-based similarity to replace the synonym list
-- Email or SMS updates to reporters through anonymous tracking codes
-- An analytics view for recurring problem locations and average time to resolve
+- Tested locally against Neon by the author; the backend test suite runs against a local PostgreSQL. Check `/api/health` after any new deployment.
+- Grouping is a rule-based heuristic with a hand-written synonym list.
+- Photo upload, anonymous-contact options and the "Under Review" status were removed in the backend version (no file storage; no contact details collected).
+- Footer contact details are placeholders; replace them with real ones.
 
 ## What I learned
 
-- Designing a scoring rule that people can understand and correct, rather than a black box
-- Modelling state so that merges and splits stay consistent (issues, reports, timeline history)
-- Treating security honestly, including where a prototype's guarantees end
+Designing a transparent scoring rule, moving trust from the browser to the server, and being honest about what anonymity and spam protection can and cannot guarantee.

@@ -72,12 +72,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({
                     <span className="text-xs text-slate-400">
                       {formatRelativeTime(report.createdAt)}
                     </span>
-                    {report.isAnonymous && (
-                      <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded font-medium flex items-center gap-1">
-                        <ShieldCheck className="w-3 h-3 text-slate-400" />
-                        Anon
-                      </span>
-                    )}
                   </div>
 
                   <h5 className="text-sm font-semibold text-navy-900 group-hover:text-teal-600 transition-colors line-clamp-1">
@@ -96,8 +90,6 @@ export const RecentReports: React.FC<RecentReportsProps> = ({
                       ? 'bg-emerald-100 text-emerald-800'
                       : status === 'In Progress'
                       ? 'bg-teal-100 text-teal-800'
-                      : status === 'Under Review'
-                      ? 'bg-blue-100 text-blue-800'
                       : 'bg-amber-100 text-amber-800'
                   }`}>
                     {status}

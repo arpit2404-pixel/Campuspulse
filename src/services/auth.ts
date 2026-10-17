@@ -1,49 +1,21 @@
 import { AdminUser } from '../types';
+import { ApiError, api, getAdminToken, onUnauthorized, setAdminToken } from './api';
 
-/**
- * DEMO-ONLY authentication.
- *
- * CampusPulse is a front-end-only project, so this check runs in the browser and
- * can be bypassed by anyone with dev tools. It exists to demonstrate role-based
- * UI flows (status updates, merge/split tools). A production deployment must
- * verify credentials on a server (e.g. an API with hashed + salted passwords,
- * rate limiting and signed session tokens).
- *
- * Only SHA-256 hashes are stored here, never plaintext passwords.
- * To use your own password, set VITE_ADMIN_PASSWORD_SHA256 in a local `.env`
- * file (see `.env.example`); it overrides the demo hash below.
- */
+// Administrator login.
+//
+// The password is checked on the SERVER (Express + PostgreSQL). Nothing secret is
+// stored in this website's code: no passwords, no hashes. After a successful login
+// the server gives us a random session token, which we keep in sessionStorage and
+// send with every admin request. It expires on its own and on logout.
+//
+// Admin accounts are created from the command line with `npm run create-admin`.
 
-// SHA-256 of the documented demo password (see README).
-const DEMO_PASSWORD_SHA256 =
-  '3efa3e0f4dcdfbe97afc666d92055cb3b9965b9b624e32eecf93ba2acdccb6ab';
+const USER_KEY = 'campuspulse_admin_user';
 
-const PASSWORD_HASH: string =
-  (import.meta as any).env?.VITE_ADMIN_PASSWORD_SHA256?.trim().toLowerCase() ||
-  DEMO_PASSWORD_SHA256;
-
-const ADMIN_ACCOUNTS: Record<string, AdminUser> = {
-  'admin@campuspulse.edu': {
-    id: 'admin-01',
-    username: 'admin@campuspulse.edu',
-    name: 'Chief Facilities Administrator',
-    role: 'superadmin'
-  },
-  'estate@campuspulse.edu': {
-    id: 'admin-02',
-    username: 'estate@campuspulse.edu',
-    name: 'Estate Maintenance Desk',
-    role: 'campus_officer'
-  }
-};
-
-const SESSION_KEY = 'campuspulse_admin_session';
-
-async function sha256(message: string): Promise<string> {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+interface LoginResponse {
+  token: string;
+  user: AdminUser;
+  expiresInHours: number;
 }
 
 class AuthService {
@@ -51,15 +23,20 @@ class AuthService {
   private listeners: ((user: AdminUser | null) => void)[] = [];
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem(SESSION_KEY);
-      if (saved) {
-        try {
-          this.currentUser = JSON.parse(saved);
-        } catch {
-          this.currentUser = null;
-        }
+    if (typeof window === 'undefined') return;
+
+    // Handle "your session expired" answers coming from any admin request
+    onUnauthorized(() => this.clearSession());
+
+    // Restore the login shown after a page refresh, then double-check it with the server
+    try {
+      const saved = sessionStorage.getItem(USER_KEY);
+      if (saved && getAdminToken()) {
+        this.currentUser = JSON.parse(saved) as AdminUser;
+        void this.verifySession();
       }
+    } catch {
+      this.currentUser = null;
     }
   }
 
@@ -74,24 +51,54 @@ class AuthService {
     this.listeners.forEach(cb => cb(this.currentUser));
   }
 
-  public async login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
-    const account = ADMIN_ACCOUNTS[username.trim().toLowerCase()];
-    const inputHash = await sha256(password);
+  private clearSession() {
+    this.currentUser = null;
+    setAdminToken('');
+    try {
+      sessionStorage.removeItem(USER_KEY);
+    } catch {
+      // ignore
+    }
+    this.notify();
+  }
 
-    if (account && inputHash === PASSWORD_HASH) {
-      this.currentUser = account;
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(account));
+  private async verifySession() {
+    try {
+      await api.get<{ user: AdminUser }>('/api/admin/me');
+    } catch (err) {
+      // A 401 already cleared the session. A network error keeps the login for now.
+      if (err instanceof ApiError && err.status === 401) this.clearSession();
+    }
+  }
+
+  public async login(username: string, password: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const session = await api.post<LoginResponse>('/api/admin/login', {
+        email: username.trim(),
+        password
+      });
+      setAdminToken(session.token);
+      this.currentUser = session.user;
+      try {
+        sessionStorage.setItem(USER_KEY, JSON.stringify(session.user));
+      } catch {
+        // ignore
+      }
       this.notify();
       return { success: true };
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Login failed. Please try again.';
+      return { success: false, error: message };
     }
-
-    return { success: false, error: 'Invalid administrator email or password.' };
   }
 
   public logout(): void {
-    this.currentUser = null;
-    sessionStorage.removeItem(SESSION_KEY);
-    this.notify();
+    const hadToken = Boolean(getAdminToken());
+    if (hadToken) {
+      // Tell the server to forget the token. If this fails the token still expires on its own.
+      void api.post('/api/admin/logout').catch(() => undefined);
+    }
+    this.clearSession();
   }
 
   public getCurrentUser(): AdminUser | null {

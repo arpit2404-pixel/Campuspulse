@@ -5,7 +5,7 @@ import {
   Tv, 
   Sparkles, 
   Building2, 
-  ShieldAlert, 
+  Wifi, 
   HelpCircle,
   PieChart
 } from 'lucide-react';
@@ -18,12 +18,12 @@ interface CategoryChartProps {
 }
 
 const CATEGORY_META: Record<IssueCategory, { icon: React.ElementType; color: string; barColor: string }> = {
-  'Electrical': { icon: Zap, color: 'text-amber-500 bg-amber-50', barColor: 'bg-amber-500' },
-  'Plumbing': { icon: Droplets, color: 'text-sky-500 bg-sky-50', barColor: 'bg-sky-500' },
+  'Electricity': { icon: Zap, color: 'text-amber-500 bg-amber-50', barColor: 'bg-amber-500' },
+  'Water': { icon: Droplets, color: 'text-sky-500 bg-sky-50', barColor: 'bg-sky-500' },
   'Classroom Equipment': { icon: Tv, color: 'text-purple-500 bg-purple-50', barColor: 'bg-purple-500' },
   'Cleanliness': { icon: Sparkles, color: 'text-emerald-500 bg-emerald-50', barColor: 'bg-emerald-500' },
   'Infrastructure': { icon: Building2, color: 'text-indigo-500 bg-indigo-50', barColor: 'bg-indigo-500' },
-  'Safety': { icon: ShieldAlert, color: 'text-rose-500 bg-rose-50', barColor: 'bg-rose-500' },
+  'Internet': { icon: Wifi, color: 'text-rose-500 bg-rose-50', barColor: 'bg-rose-500' },
   'Other': { icon: HelpCircle, color: 'text-slate-500 bg-slate-50', barColor: 'bg-slate-500' }
 };
 

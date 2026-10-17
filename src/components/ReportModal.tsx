@@ -15,7 +15,7 @@ import {
   Check
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { IssueCategory, Report, Issue } from '../types';
+import { IssueCategory, Report, Issue, Urgency } from '../types';
 import { CAMPUS_BUILDINGS, CATEGORIES } from '../data/demoData';
 import { db } from '../services/db';
 
@@ -36,12 +36,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<IssueCategory>('Electrical');
+  const [category, setCategory] = useState<IssueCategory>('Electricity');
   const [building, setBuilding] = useState(prefilledBuilding || CAMPUS_BUILDINGS[0]);
   const [room, setRoom] = useState(prefilledRoom || '');
-  const [imageUrl, setImageUrl] = useState('');
-  const [isAnonymous, setIsAnonymous] = useState(true);
-  const [contactEmail, setContactEmail] = useState('');
+  const [urgency, setUrgency] = useState<Urgency | ''>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   
@@ -58,26 +56,12 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        setErrorMsg('Image size should be less than 2MB.');
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
-    // Validation
+    // Friendly checks here. The server checks everything again, so these are only
+    // for convenience: they are never the only protection.
     if (!title.trim()) {
       setErrorMsg('Please enter an issue title.');
       return;
@@ -90,6 +74,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       setErrorMsg('Please enter a brief description of the problem.');
       return;
     }
+    if (description.trim().length < 10) {
+      setErrorMsg('Description must be at least 10 characters long.');
+      return;
+    }
     if (!building) {
       setErrorMsg('Please select a campus building.');
       return;
@@ -97,52 +85,42 @@ export const ReportModal: React.FC<ReportModalProps> = ({
 
     setIsSubmitting(true);
 
-    try {
-      // Simulate brief network delay for UX responsiveness
-      setTimeout(() => {
-        const result = db.submitReport({
-          title: title.trim(),
-          description: description.trim(),
-          category,
-          building,
-          room: room.trim(),
-          imageUrl: imageUrl || undefined,
-          isAnonymous,
-          reporterContact: !isAnonymous ? contactEmail.trim() : undefined
-        });
+    const result = await db.submitReport({
+      title: title.trim(),
+      description: description.trim(),
+      category,
+      building,
+      room: room.trim(),
+      urgency: urgency || undefined
+    });
 
-        if (!result.success) {
-          setErrorMsg(result.message || 'Submission rejected by campus fair-ranking filter.');
-          setIsSubmitting(false);
-          return;
-        }
-
-        // Fire celebratory confetti
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-
-        setSubmissionResult({
-          report: result.report!,
-          issue: result.issue!,
-          isGrouped: !!result.isGrouped,
-          matchConfidence: result.matchConfidence || 0,
-          matchReason: result.matchReason || ''
-        });
-        setIsSubmitting(false);
-        onSuccess({
-          report: result.report!,
-          issue: result.issue!,
-          isGrouped: !!result.isGrouped,
-          matchReason: result.matchReason || ''
-        });
-      }, 400);
-    } catch (err) {
-      setErrorMsg('Failed to submit report. Please try again.');
+    if (!result.success || !result.report || !result.issue) {
+      setErrorMsg(result.message || 'Your report could not be sent. Please try again.');
       setIsSubmitting(false);
+      return;
     }
+
+    // Fire celebratory confetti
+    confetti({
+      particleCount: 80,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+
+    setSubmissionResult({
+      report: result.report,
+      issue: result.issue,
+      isGrouped: !!result.isGrouped,
+      matchConfidence: result.matchConfidence || 0,
+      matchReason: result.matchReason || ''
+    });
+    setIsSubmitting(false);
+    onSuccess({
+      report: result.report,
+      issue: result.issue,
+      isGrouped: !!result.isGrouped,
+      matchReason: result.matchReason || ''
+    });
   };
 
   const handleCopyReference = () => {
@@ -156,10 +134,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   const handleResetAndClose = () => {
     setTitle('');
     setDescription('');
-    setCategory('Electrical');
+    setCategory('Electricity');
     setRoom('');
-    setImageUrl('');
-    setIsAnonymous(true);
+    setUrgency('');
     setSubmissionResult(null);
     setErrorMsg('');
     onClose();
@@ -177,7 +154,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
             </div>
             <div>
               <h3 className="text-lg font-bold">Report a Campus Issue</h3>
-              <p className="text-xs text-slate-300">Anonymous by default • Intelligent deduplication</p>
+              <p className="text-xs text-slate-300">No sign-up needed • Smart duplicate grouping</p>
             </div>
           </div>
           <button
@@ -291,6 +268,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Ceiling fan not working in Room 204"
+                maxLength={120}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
                 required
               />
@@ -345,6 +323,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                   value={room}
                   onChange={(e) => setRoom(e.target.value)}
                   placeholder="e.g. Room 204 or 2nd Floor Corridor"
+                  maxLength={50}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white"
                 />
               </div>
@@ -359,70 +338,46 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
+                maxLength={1000}
                 placeholder="Describe what's wrong (e.g. rattling sound, leak size, hazards, how long it has been broken)..."
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 bg-white resize-none"
                 required
               />
             </div>
 
-            {/* Image Attachment (Optional) */}
+            {/* Urgency (Optional) */}
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Photo Evidence (Optional)
+                Urgency <span className="text-slate-400 font-normal normal-case">(optional)</span>
               </label>
-              <div className="flex items-center gap-3">
-                <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-300 text-xs font-medium text-slate-600 cursor-pointer hover:bg-slate-50 transition-colors">
-                  <Upload className="w-3.5 h-3.5 text-teal-600" />
-                  <span>Choose file...</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageFileChange}
-                    className="hidden"
-                  />
-                </label>
-                {imageUrl && (
-                  <span className="text-xs text-teal-700 font-medium flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Photo attached
-                  </span>
-                )}
+              <div className="grid grid-cols-4 gap-2">
+                {([['', 'Not sure'], ['Low', 'Low'], ['Medium', 'Medium'], ['High', 'High']] as [Urgency | '', string][]).map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => setUrgency(value)}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border text-center transition-all ${
+                      urgency === value
+                        ? 'bg-teal-500/10 border-teal-500 text-teal-800 ring-1 ring-teal-500 font-bold'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Anonymous Toggle (Default True) */}
+            {/* Privacy note (honest about what is and is not collected) */}
             <div className="bg-teal-50/60 border border-teal-100 rounded-2xl p-4">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isAnonymous}
-                  onChange={(e) => setIsAnonymous(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                />
-                <div>
-                  <span className="text-xs font-bold text-navy-950 flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-teal-600" />
-                    Submit Anonymously (Default)
-                  </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    Your personal identity and contact will not be linked or visible to administrators or students.
-                  </p>
-                </div>
-              </label>
-
-              {!isAnonymous && (
-                <div className="mt-3 pt-3 border-t border-teal-100">
-                  <label className="block text-xs font-medium text-slate-700 mb-1">
-                    Student Email / Contact (For status updates)
-                  </label>
-                  <input
-                    type="email"
-                    value={contactEmail}
-                    onChange={(e) => setContactEmail(e.target.value)}
-                    placeholder="student@college.edu"
-                    className="w-full px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-teal-500 focus:border-teal-500 bg-white"
-                  />
-                </div>
-              )}
+              <div className="flex items-start gap-3">
+                <ShieldCheck className="w-4 h-4 text-teal-600 mt-0.5 shrink-0" />
+                <p className="text-[11px] text-slate-600 leading-relaxed">
+                  <span className="font-bold text-navy-950">No name, email or phone number is collected.</span>{' '}
+                  To stop repeat submissions, the server keeps only a scrambled (hashed) code of your browser and network
+                  address. Reports are not guaranteed to be untraceable.
+                </p>
+              </div>
             </div>
 
             {/* Submit Action */}
@@ -440,7 +395,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
                 ) : (
                   <>
                     <Send className="w-4 h-4 stroke-[2.5]" />
-                    <span>Submit Anonymous Report</span>
+                    <span>Submit Report</span>
                   </>
                 )}
               </button>

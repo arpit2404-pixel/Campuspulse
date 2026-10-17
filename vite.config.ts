@@ -7,6 +7,10 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false,
-    host: true
+    host: true,
+    // While developing, forward /api requests to the Express server (npm run server)
+    proxy: {
+      '/api': { target: 'http://localhost:3001', changeOrigin: true }
+    }
   }
 });

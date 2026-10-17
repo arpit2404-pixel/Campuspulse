@@ -9,7 +9,7 @@ import {
   Tv, 
   Sparkles, 
   Building2, 
-  ShieldAlert, 
+  Wifi, 
   HelpCircle,
   TrendingUp
 } from 'lucide-react';
@@ -22,18 +22,17 @@ interface TopIssuesProps {
 }
 
 const CATEGORY_ICONS: Record<IssueCategory, React.ElementType> = {
-  'Electrical': Zap,
-  'Plumbing': Droplets,
+  'Electricity': Zap,
+  'Water': Droplets,
   'Classroom Equipment': Tv,
   'Cleanliness': Sparkles,
   'Infrastructure': Building2,
-  'Safety': ShieldAlert,
+  'Internet': Wifi,
   'Other': HelpCircle
 };
 
 const STATUS_BADGES: Record<IssueStatus, { label: string; bg: string; text: string; dot: string }> = {
   'Pending': { label: 'Pending', bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500' },
-  'Under Review': { label: 'Under Review', bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', dot: 'bg-blue-500' },
   'In Progress': { label: 'In Progress', bg: 'bg-teal-50 border-teal-200', text: 'text-teal-700', dot: 'bg-teal-500' },
   'Resolved': { label: 'Resolved', bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500' }
 };

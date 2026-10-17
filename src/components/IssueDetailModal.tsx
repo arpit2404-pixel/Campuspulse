@@ -11,7 +11,7 @@ import {
   Tv, 
   Sparkles, 
   Building2, 
-  ShieldAlert, 
+  Wifi, 
   HelpCircle,
   PlusCircle,
   CheckCircle2,
@@ -29,12 +29,12 @@ interface IssueDetailModalProps {
 }
 
 const CATEGORY_ICONS: Record<IssueCategory, React.ElementType> = {
-  'Electrical': Zap,
-  'Plumbing': Droplets,
+  'Electricity': Zap,
+  'Water': Droplets,
   'Classroom Equipment': Tv,
   'Cleanliness': Sparkles,
   'Infrastructure': Building2,
-  'Safety': ShieldAlert,
+  'Internet': Wifi,
   'Other': HelpCircle
 };
 
@@ -45,13 +45,6 @@ const STATUS_CONFIG: Record<IssueStatus, { label: string; bg: string; text: stri
     text: 'text-amber-800', 
     dot: 'bg-amber-500',
     description: 'Awaiting initial maintenance assessment and verification.' 
-  },
-  'Under Review': { 
-    label: 'Under Review', 
-    bg: 'bg-blue-50 border-blue-200', 
-    text: 'text-blue-800', 
-    dot: 'bg-blue-500',
-    description: 'Assigned to campus facility team for inspection.' 
   },
   'In Progress': { 
     label: 'In Progress', 
@@ -76,6 +69,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
   onRefresh
 }) => {
   const [activeTab, setActiveTab] = useState<'timeline' | 'reports'>('timeline');
+  const [isSupporting, setIsSupporting] = useState(false);
 
   if (!issue) return null;
 
@@ -108,6 +102,11 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
                 {statusInfo.label}
               </span>
+              {issue.urgency && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/10 text-slate-200 border border-white/20">
+                  {issue.urgency} urgency
+                </span>
+              )}
             </div>
 
             <h3 className="text-lg sm:text-xl font-bold text-white leading-tight">
@@ -158,7 +157,7 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
               </div>
 
               {issue.status !== 'Resolved' && (
-                db.hasUserReportedIssue(issue.id) ? (
+                issue.reportedByMe ? (
                   <div className="mt-3 w-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold py-1.5 px-2 rounded-xl text-[11px] flex items-center justify-center gap-1.5">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                     <span>You verified this (1 vote per student)</span>
@@ -166,18 +165,21 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                 ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      const res = db.upvoteIssue(issue.id);
+                    disabled={isSupporting}
+                    onClick={async () => {
+                      setIsSupporting(true);
+                      const res = await db.supportIssue(issue.id);
+                      setIsSupporting(false);
                       if (res.success) {
                         onRefresh();
                       } else {
                         alert(res.message);
                       }
                     }}
-                    className="mt-3 w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-1.5 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
+                    className="mt-3 w-full bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-bold py-1.5 px-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-sm"
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
-                    <span>+1 I have this too</span>
+                    <span>{isSupporting ? 'Adding...' : '+1 I have this too'}</span>
                   </button>
                 )
               )}
@@ -280,16 +282,10 @@ export const IssueDetailModal: React.FC<IssueDetailModalProps> = ({
                             {formatDate(report.createdAt)}
                           </span>
                         </div>
-                        {report.isAnonymous ? (
-                          <span className="text-[10px] font-semibold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3 text-slate-500" />
-                            Anonymous Student
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-semibold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
-                            Verified Student
-                          </span>
-                        )}
+                        <span className="text-[10px] font-semibold text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <ShieldCheck className="w-3 h-3 text-slate-500" />
+                          {report.isSupport ? 'Confirmed by a student' : 'Student report'}
+                        </span>
                       </div>
 
                       <h6 className="text-xs font-bold text-slate-800 mt-1">

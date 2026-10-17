@@ -1,34 +1,34 @@
-export type IssueCategory = 
-  | 'Electrical' 
-  | 'Plumbing' 
-  | 'Classroom Equipment' 
-  | 'Cleanliness' 
-  | 'Infrastructure' 
-  | 'Safety' 
+export type IssueCategory =
+  | 'Infrastructure'
+  | 'Electricity'
+  | 'Water'
+  | 'Cleanliness'
+  | 'Internet'
+  | 'Classroom Equipment'
   | 'Other';
 
-export type IssueStatus = 
-  | 'Pending' 
-  | 'Under Review' 
-  | 'In Progress' 
+export type IssueStatus =
+  | 'Pending'
+  | 'In Progress'
   | 'Resolved';
 
+export type Urgency = 'Low' | 'Medium' | 'High';
+
+// One complaint submitted by one student (or one "+1 I have this too").
+// Note: the server never sends who reported it, only what was reported.
 export interface Report {
   id: string;
   referenceNo: string;
   issueId: string;
-  reporterId?: string;
   title: string;
   description: string;
   category: IssueCategory;
   building: string;
   room: string;
   locationDisplay: string;
-  imageUrl?: string;
-  isAnonymous: boolean;
-  reporterContact?: string;
+  urgency?: Urgency;
+  isSupport?: boolean;
   createdAt: string;
-  isDemo?: boolean;
 }
 
 export interface StatusHistory {
@@ -41,6 +41,7 @@ export interface StatusHistory {
   createdAt: string;
 }
 
+// A group of similar reports about the same problem (a "recurring problem").
 export interface Issue {
   id: string;
   title: string;
@@ -50,11 +51,12 @@ export interface Issue {
   room: string;
   locationDisplay: string;
   reportCount: number;
-  uniqueReporterIds?: string[];
+  // true when this browser has already counted on this issue
+  reportedByMe?: boolean;
   status: IssueStatus;
+  urgency?: Urgency;
   createdAt: string;
   updatedAt: string;
-  isDemo?: boolean;
   reports?: Report[];
   history?: StatusHistory[];
 }

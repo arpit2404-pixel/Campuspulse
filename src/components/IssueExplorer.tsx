@@ -12,7 +12,7 @@ import {
   Droplets,
   Tv,
   Sparkles,
-  ShieldAlert,
+  Wifi,
   HelpCircle,
   CheckCircle2,
   Clock
@@ -27,18 +27,17 @@ interface IssueExplorerProps {
 }
 
 const CATEGORY_ICONS: Record<IssueCategory, React.ElementType> = {
-  'Electrical': Zap,
-  'Plumbing': Droplets,
+  'Electricity': Zap,
+  'Water': Droplets,
   'Classroom Equipment': Tv,
   'Cleanliness': Sparkles,
   'Infrastructure': Building2,
-  'Safety': ShieldAlert,
+  'Internet': Wifi,
   'Other': HelpCircle
 };
 
 const STATUS_BADGES: Record<IssueStatus, { label: string; bg: string; text: string; dot: string }> = {
   'Pending': { label: 'Pending', bg: 'bg-amber-50 border-amber-200', text: 'text-amber-800', dot: 'bg-amber-500' },
-  'Under Review': { label: 'Under Review', bg: 'bg-blue-50 border-blue-200', text: 'text-blue-800', dot: 'bg-blue-500' },
   'In Progress': { label: 'In Progress', bg: 'bg-teal-50 border-teal-200', text: 'text-teal-800', dot: 'bg-teal-500' },
   'Resolved': { label: 'Resolved', bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-800', dot: 'bg-emerald-500' }
 };
@@ -152,7 +151,6 @@ export const IssueExplorer: React.FC<IssueExplorerProps> = ({
             >
               <option value="All">All Statuses</option>
               <option value="Pending">Pending</option>
-              <option value="Under Review">Under Review</option>
               <option value="In Progress">In Progress</option>
               <option value="Resolved">Resolved</option>
             </select>
