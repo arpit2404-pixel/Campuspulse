@@ -12,7 +12,9 @@
     "server:dev": "node --watch server/index.js",
     "db:setup": "node server/scripts/setup-db.js",
     "create-admin": "node server/scripts/create-admin.js",
-    "test": "node --test 'server/test/**/*.test.js'"
+    "test": "scripts": {
+  "test": "node --test server/test/"
+}
   },
   "dependencies": {
     "canvas-confetti": "^1.9.3",
