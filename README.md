@@ -110,6 +110,21 @@ Free-tier limits (as of October 2026; check the providers, they change):
 
 Splitting the site (Netlify/Vercel) from the API (Render) also works: set `VITE_API_URL` at build time and `CORS_ORIGIN` on the server.
 
+## API Route Access Control
+
+| Method | Endpoint | Permission Level | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/` | Public | Home / Health check |
+| `POST` | `/auth/login` | Public | User authentication |
+| `POST` | `/auth/register` | Public | New user registration |
+| `GET` | `/events` | Student, Admin | List campus events |
+| `POST` | `/events` | Admin | Create a new campus event |
+| `GET` | `/events/{id}` | Student, Admin | View event details |
+| `PUT` | `/events/{id}` | Admin | Edit event details |
+| `DELETE` | `/events/{id}` | Admin | Remove an event |
+| `GET` | `/users/me` | Authenticated | View current user profile |
+| `GET` | `/admin/dashboard` | Admin | Access admin metrics |
+
 ## Known limitations
 
 - Tested locally against Neon by the author; the backend test suite runs against a local PostgreSQL. Check `/api/health` after any new deployment.
