@@ -6,11 +6,14 @@ Started as a first-year IEEE hackathon project (judged by senior students), then
 
 **Stack:** React 18 · TypeScript · Vite · Tailwind CSS · Node.js · Express · PostgreSQL (Neon)
 
-**Live demo:** _add your Render URL here after deploying_ (the free server sleeps when idle, so the first load can take about a minute)
+**Live demo:** https://campuspulse-vjz5.onrender.com/ (the free server sleeps when idle, so the first load can take about a minute)
 
-<!-- Add 3-4 screenshots to docs/screenshots/ and embed them here, e.g.
-![Dashboard](docs/screenshots/dashboard.png) -->
-
+**Screenshot** ![alt text](image-1.png)
+![alt text](image-2.png)
+![alt text](image-3.png)
+![alt text](image-4.png)
+![alt text](image-5.png)
+![alt text](image-6.png)
 ## The problem
 
 On a campus, one broken fan gets reported ten different ways to ten different people, or not at all. Maintenance staff see noise instead of a clear list of what matters most. CampusPulse collects reports in one place and groups duplicates, so the most widespread problems are obvious.
