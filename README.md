@@ -1,5 +1,7 @@
 # CampusPulse
 
+[![Run Tests](https://github.com/arpit2404-pixel/Campuspulse/actions/workflows/test.yml/badge.svg)](https://github.com/arpit2404-pixel/Campuspulse/actions/workflows/test.yml)
+
 **Your campus. Your voice.** A campus issue-reporting platform that groups duplicate complaints into one ticket, so the problems affecting the most students rise to the top. Reports are stored in a real PostgreSQL database and shared by every visitor.
 
 Started as a first-year IEEE hackathon project (judged by senior students), then extended with a real backend.
