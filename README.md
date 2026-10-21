@@ -11,7 +11,7 @@ Started as a first-year IEEE hackathon project (judged by senior students), then
 **Live demo:** https://campuspulse-vjz5.onrender.com/ (the free server sleeps when idle, so the first load can take about a minute)
 
 **Screenshot** ![alt text](image-1.png)
-![alt text](image-2.png)
+
 ![alt text](image-3.png)
 ![alt text](image-4.png)
 ![alt text](image-5.png)
