@@ -64,21 +64,22 @@ Needs Node.js 20.12 or newer.
 
 Never commit `.env`; it is git-ignored. Never put secrets in `VITE_` variables, because those are public.
 
-## API
+## API Route Access Control
 
-| Method | Path | Who | Purpose |
-|---|---|---|---|
-| GET | `/api/health` | anyone | server + database check |
-| GET | `/api/state` | anyone | issues, reports, stats |
-| POST | `/api/reports` | anyone | submit a report |
-| POST | `/api/issues/:id/support` | anyone | "I have this too" |
-| POST | `/api/admin/login`, `/logout` | admin | session |
-| GET | `/api/admin/me` | admin | current admin |
-| PATCH | `/api/issues/:id/status` | admin | change status + note |
-| POST | `/api/issues/:id/merge` | admin | merge duplicate tickets |
-| POST | `/api/reports/:id/separate` | admin | split a report out |
+| Method | Path | Access | Rate limit | Purpose |
+| ------ | ---- | ------ | ---------- | ------- |
+| GET | `/api/health` | Public | None | Server and database check |
+| GET | `/api/state` | Public | 600 per minute per IP | Issues, reports and stats |
+| POST | `/api/reports` | Public | 40 writes per minute per IP; 3 reports per 3 minutes per browser | Submit a report |
+| POST | `/api/issues/:id/support` | Public | 40 writes per minute per IP; one per browser per issue | "I have this too" |
+| POST | `/api/admin/login` | Public | 5 attempts per 15 minutes per IP and email | Admin sign-in |
+| GET | `/api/admin/me` | Admin (Bearer token) | None | Current admin |
+| POST | `/api/admin/logout` | Admin (Bearer token) | None | End session |
+| PATCH | `/api/issues/:id/status` | Admin (Bearer token) | 40 writes per minute per IP | Change status and add a note |
+| POST | `/api/issues/:id/merge` | Admin (Bearer token) | 40 writes per minute per IP | Merge duplicate tickets |
+| POST | `/api/reports/:id/separate` | Admin (Bearer token) | 40 writes per minute per IP | Split a report into its own ticket |
 
-Errors look like `{"error":{"code","message","fields?","retryAfterSeconds?"}}`.
+Admin routes require an `Authorization: Bearer <token>` header; unauthenticated calls get a 401.
 
 ## Security and spam controls
 
